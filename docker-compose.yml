@@ -1,0 +1,155 @@
+services:
+  # ── MySQL ──────────────────────────
+  mysql-de:
+    image: mysql:8.0
+    container_name: mysql-de
+    environment:
+      MYSQL_ROOT_PASSWORD: de1234!
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./mysql-data:/var/lib/mysql
+    restart: unless-stopped
+
+  # ── Spark ──────────────────────────
+  spark-master:
+    build: ./docker/spark
+    container_name: spark-master
+    environment:
+      - SPARK_MODE=master
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+    restart: unless-stopped
+
+  spark-worker-1:
+    build: ./docker/spark
+    container_name: spark-worker-1
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_MEMORY=4G
+      - SPARK_WORKER_CORES=1
+    depends_on: [spark-master]
+    restart: unless-stopped
+
+  spark-worker-2:
+    build: ./docker/spark
+    container_name: spark-worker-2
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_MEMORY=4G
+      - SPARK_WORKER_CORES=1
+    depends_on: [spark-master]
+    restart: unless-stopped
+
+  # ── Airflow ──────────────────────────
+  airflow-postgres:
+    image: postgres:13
+    container_name: airflow-postgres
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - airflow-db-volume:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  airflow-init:
+    build: ./docker/airflow
+    container_name: airflow-init
+    depends_on: [airflow-postgres]
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-postgres/airflow
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+      - ./scripts:/opt/airflow/scripts
+      - ./data:/opt/airflow/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    entrypoint: ["/entrypoint-custom.sh", "bash", "-c"]
+    command:
+      - "airflow db init && airflow users create --username admin --password admin --firstname Admin --lastname Admin --role Admin --email admin@example.com"
+
+  airflow-webserver:
+    build: ./docker/airflow
+    container_name: airflow-webserver
+    depends_on: [airflow-postgres]
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-postgres/airflow
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+      - ./scripts:/opt/airflow/scripts
+      - ./data:/opt/airflow/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "8081:8080"
+    command: ["webserver"]
+    restart: unless-stopped
+
+  airflow-scheduler:
+    build: ./docker/airflow
+    container_name: airflow-scheduler
+    depends_on: [airflow-postgres]
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-postgres/airflow
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+      - ./scripts:/opt/airflow/scripts
+      - ./data:/opt/airflow/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: ["scheduler"]
+    restart: unless-stopped
+
+  # ── Superset ──────────────────────────
+  superset-db:
+    image: postgres:13
+    container_name: superset-db
+    environment:
+      POSTGRES_USER: superset
+      POSTGRES_PASSWORD: superset
+      POSTGRES_DB: superset
+    volumes:
+      - superset-db-volume:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  superset-redis:
+    image: redis:7
+    container_name: superset-redis
+    restart: unless-stopped
+
+  superset:
+    build: ./docker/superset
+    container_name: superset
+    depends_on: [superset-db, superset-redis]
+    environment:
+      SUPERSET_SECRET_KEY: "de_portfolio_secret_key_2026"
+      DATABASE_DIALECT: postgresql
+      DATABASE_HOST: superset-db
+      DATABASE_PORT: 5432
+      DATABASE_DB: superset
+      DATABASE_USER: superset
+      DATABASE_PASSWORD: superset
+      REDIS_HOST: superset-redis
+    volumes:
+      - ./docker/superset/superset_config.py:/app/pythonpath/superset_config.py
+    ports:
+      - "8088:8088"
+    restart: unless-stopped
+
+networks:
+  default:
+    name: de-portfolio-network
+
+volumes:
+  airflow-db-volume:
+  superset-db-volume:
