@@ -13,7 +13,7 @@ Kaggle CSV → 정제(Pandas) → 적재(MySQL) → 집계(Spark) → 자동화(
 | 정제 | 결측치/이상치 처리, 타입 변환 | Pandas |
 | 적재 | 정제된 데이터 저장 | MySQL 8.0 |
 | 집계 | 일별 매출, 브랜드별 조회수 집계 (Master+Worker 2 클러스터) | Apache Spark 4.0 |
-| 자동화 | 매일 새벽 2시 전체 파이프라인 자동 실행 | Apache Airflow 2.9.3 |
+| 자동화 | 정제→집계 파이프라인 오케스트레이션, 매일 UTC 02:00 자동 스케줄 실행 검증 완료 | Apache Airflow 2.9.3 |
 | 시각화 | 집계 결과 대시보드 | Apache Superset |
 
 모든 서비스는 Docker Compose로 관리되며, 전용 Dockerfile을 통해 재현 가능하게 구성했습니다.
@@ -40,7 +40,7 @@ docker compose up -d --build
 # Superset:         http://localhost:8088  (admin / admin)
 ```
 
-Airflow 웹 화면에서 `ecommerce_batch_pipeline` DAG를 Active로 전환하면 매일 새벽 2시에 자동 실행되며, ▶ 버튼으로 즉시 실행도 가능합니다.
+Airflow 웹 화면에서 `ecommerce_batch_pipeline` DAG를 Active로 전환하면 설정된 스케줄(`schedule_interval='0 2 * * *'`, 매일 UTC 02:00)에 맞춰 자동 실행되며, ▶ 버튼으로 즉시 수동 실행도 가능합니다. 실제로 사람 개입 없이 스케줄대로 트리거되는 것을 확인했습니다 (`Run type: scheduled`, 2026-09-21 02:00 UTC 실행 성공).
 
 ## 프로젝트 구조
 
