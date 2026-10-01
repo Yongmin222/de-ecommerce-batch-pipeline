@@ -42,6 +42,20 @@ docker compose up -d --build
 
 Airflow 웹 화면에서 `ecommerce_batch_pipeline` DAG를 Active로 전환하면 설정된 스케줄(`schedule_interval='0 2 * * *'`, 매일 UTC 02:00)에 맞춰 자동 실행되며, ▶ 버튼으로 즉시 수동 실행도 가능합니다. 실제로 사람 개입 없이 스케줄대로 트리거되는 것을 확인했습니다 (`Run type: scheduled`, 2026-09-21 02:00 UTC 실행 성공).
 
+## 실행 결과
+
+### Airflow - 스케줄 자동 실행 성공
+
+![Airflow DAG 실행 화면](docs/images/airflow-dag-run.webp)
+
+`ecommerce_batch_pipeline` DAG가 2026-09-21 02:00 UTC에 사람 개입 없이 스케줄(`scheduled`)로 실행되어 성공한 화면입니다. 태스크는 `clean_and_load`, `copy_aggregate_script`, `run_aggregate` 3개이고, 실행 시간은 약 6분입니다.
+
+### Superset - 집계 결과 대시보드
+
+![Superset 대시보드](docs/images/superset-dashboard.webp)
+
+Spark로 집계한 결과를 시각화한 대시보드입니다. 일별 매출 추이(선 그래프)와 브랜드별 조회수 Top 10(Unknown 제외, 막대 그래프)을 보여줍니다.
+
 ## 프로젝트 구조
 
 ```
